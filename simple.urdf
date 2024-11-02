@@ -1,0 +1,72 @@
+<?xml version="1.0" ?>
+<robot name="simple">
+  <link name="base_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.00017023202404845418 -0.021341439639662032 0.014423161616418092"/>
+      <mass value="0.5164575020815119"/>
+      <inertia ixx="0.000304" ixy="-2e-06" ixz="-1e-06" iyy="0.000283" iyz="-6.2e-05" izz="0.000441"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="link1">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.0006216635769899589 -0.011914175885676576 0.015400174574576098"/>
+      <mass value="0.3956063453928257"/>
+      <inertia ixx="0.000112" ixy="0.0" ixz="0.0" iyy="7.5e-05" iyz="-1e-06" izz="0.000123"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="-0.0 -0.0 -0.039"/>
+      <geometry>
+        <mesh filename="meshes/link1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="-0.0 -0.0 -0.039"/>
+      <geometry>
+        <mesh filename="meshes/link1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="link2">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.00015778948024297947 -0.0012168309893684582 0.07161179945761596"/>
+      <mass value="0.3916070272991037"/>
+      <inertia ixx="0.00052" ixy="-1e-06" ixz="-2e-06" iyy="0.000534" iyz="-3.7e-05" izz="8.4e-05"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0.0002 0.0 -0.0563"/>
+      <geometry>
+        <mesh filename="meshes/link2.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0.0002 0.0 -0.0563"/>
+      <geometry>
+        <mesh filename="meshes/link2.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="joint1" type="continuous">
+    <origin rpy="0 0 0" xyz="0.0 0.0 0.039"/>
+    <parent link="base_link"/>
+    <child link="link1"/>
+    <axis xyz="0.0 0.0 1.0"/>
+  </joint>
+  <joint name="joint2" type="continuous">
+    <origin rpy="0 0 0" xyz="-0.0002 -0.0 0.0173"/>
+    <parent link="link1"/>
+    <child link="link2"/>
+    <axis xyz="-1.0 -0.0 0.0"/>
+  </joint>
+</robot>
