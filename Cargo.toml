@@ -9,6 +9,16 @@ log = { version = "*", features = [
   "release_max_level_warn",
 ] }
 bevy = { version = "0.14", features = ["dynamic_linking", "wayland"] }
+bevy-fps-counter = "0.5"
+bevy_stl = { version = "0.14", features = ["wireframe"] }
+urdf-rs = "0.9"
+bevy_flycam = "0.14"
+avian3d = { version = "0.1", features = [
+  "debug-plugin",
+  "default-collider",
+  "parallel",
+  "simd",
+] }
 
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
