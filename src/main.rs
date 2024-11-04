@@ -10,6 +10,9 @@ mod world;
 use camera::CameraPlugin;
 use world::WorldPlugin;
 
+#[derive(Component)]
+struct URDFCollider;
+
 fn main() {
     App::new()
         .add_plugins((
@@ -28,8 +31,9 @@ fn main() {
             },
             GizmoConfig::default(),
         )
-        .insert_resource(SubstepCount(200))
+        .insert_resource(SubstepCount(2000))
         .add_systems(Startup, spawn_robots)
+        .add_systems(PostProcessCollisions, ignore_collision)
         .run();
 }
 
@@ -109,6 +113,7 @@ fn spawn_robot(
                     mesh_handle,
                     urdf_to_transform(&collision.origin, &Some(collision.geometry.clone())),
                     ColliderConstructor::ConvexDecompositionFromMesh,
+                    URDFCollider,
                 ));
             });
         }
@@ -325,4 +330,47 @@ fn urdf_to_joint(
         }
         _ => error!("Unsupported joint type: {:?}", urdf_joint.joint_type),
     }
+}
+
+fn ignore_collision(mut collisions: ResMut<Collisions>, query: Query<&URDFCollider>) {
+    collisions.retain(|contacts| {
+        let entity1_is_urdf = query.get(contacts.entity1).is_ok();
+        let entity2_is_urdf = query.get(contacts.entity2).is_ok();
+
+        if entity1_is_urdf && entity2_is_urdf {
+            if collision_above_threshold(contacts, 0.02) {
+                warn!(
+                    "Not ignoring collision with penetration: {}",
+                    max_penetration(contacts)
+                );
+                return true;
+            }
+            false
+        } else {
+            true
+        }
+    });
+}
+
+fn collision_above_threshold(contacts: &mut Contacts, ignore_threshold: f32) -> bool {
+    contacts.manifolds.iter().all(|manifold| {
+        manifold
+            .contacts
+            .iter()
+            .all(|contact| contact.penetration >= ignore_threshold)
+    })
+}
+
+fn max_penetration(contacts: &Contacts) -> f32 {
+    contacts
+        .manifolds
+        .iter()
+        .fold(0.0, |max_penetration, manifold| {
+            manifold
+                .contacts
+                .iter()
+                .fold(max_penetration, |max_penetration, contact| {
+                    f32::max(max_penetration, contact.penetration)
+                })
+        })
 }
