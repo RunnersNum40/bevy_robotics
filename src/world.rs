@@ -52,7 +52,7 @@ fn spawn_floor(
             });
             parent.spawn((
                 RigidBody::Static,
-                Collider::cylinder(FLOOR_RADIUS, FLOOR_HEIGHT / 2.0),
+                Collider::cylinder(FLOOR_RADIUS.into(), (FLOOR_HEIGHT / 2.0).into()),
             ));
         });
 }

@@ -13,9 +13,13 @@ bevy-fps-counter = "0.5"
 bevy_stl = { version = "0.14", features = ["wireframe"] }
 urdf-rs = "0.9"
 bevy_flycam = "0.14"
-avian3d = { version = "0.1", features = [
-  "debug-plugin",
+avian3d = { version = "0.1", default-features = false, features = [
+  "3d",
+  "f64",
   "default-collider",
+  "parry-f64",
+  "collider-from-mesh",
+  "debug-plugin",
   "parallel",
   "simd",
 ] }

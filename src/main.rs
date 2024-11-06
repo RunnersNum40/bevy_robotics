@@ -151,29 +151,35 @@ fn spawn_robot(
 
 fn link_to_mass_properties(link: &urdf_rs::Link) -> MassPropertiesBundle {
     MassPropertiesBundle {
-        mass: Mass(link.inertial.mass.value as f32),
+        mass: Mass(link.inertial.mass.value),
         inertia: Inertia(avian3d::math::Matrix3 {
             x_axis: Vec3::new(
                 link.inertial.inertia.ixx as f32,
                 link.inertial.inertia.ixy as f32,
                 link.inertial.inertia.ixz as f32,
-            ),
+            )
+            .into(),
             y_axis: Vec3::new(
                 link.inertial.inertia.ixy as f32,
                 link.inertial.inertia.iyy as f32,
                 link.inertial.inertia.iyz as f32,
-            ),
+            )
+            .into(),
             z_axis: Vec3::new(
                 link.inertial.inertia.ixz as f32,
                 link.inertial.inertia.iyz as f32,
                 link.inertial.inertia.izz as f32,
-            ),
+            )
+            .into(),
         }),
-        center_of_mass: CenterOfMass(Vec3::new(
-            link.inertial.origin.xyz[0] as f32,
-            link.inertial.origin.xyz[1] as f32,
-            link.inertial.origin.xyz[2] as f32,
-        )),
+        center_of_mass: CenterOfMass(
+            Vec3::new(
+                link.inertial.origin.xyz[0] as f32,
+                link.inertial.origin.xyz[1] as f32,
+                link.inertial.origin.xyz[2] as f32,
+            )
+            .into(),
+        ),
         ..Default::default()
     }
 }
@@ -324,14 +330,13 @@ fn urdf_to_joint(
     match urdf_joint.joint_type {
         urdf_rs::JointType::Revolute | urdf_rs::JointType::Continuous => {
             let joint = RevoluteJoint::new(entity1, entity2)
-                .with_aligned_axis(axis)
-                .with_local_anchor_1(anchor)
-                .with_angular_velocity_damping(dynamics.damping as f32)
+                .with_aligned_axis(axis.into())
+                .with_local_anchor_1(anchor.into())
+                .with_angular_velocity_damping(dynamics.damping)
                 .with_compliance(0.0);
 
             let joint = if let urdf_rs::JointType::Revolute = urdf_joint.joint_type {
-                joint
-                    .with_angle_limits(urdf_joint.limit.lower as f32, urdf_joint.limit.upper as f32)
+                joint.with_angle_limits(urdf_joint.limit.lower, urdf_joint.limit.upper)
             } else {
                 joint
             };
@@ -353,22 +358,14 @@ fn ignore_collision(mut collisions: ResMut<Collisions>, query: Query<&URDFCollid
         if entity1_is_urdf && entity2_is_urdf {
             let max_penetration_amount = max_penetration(contacts);
 
-            if max_penetration_amount > 0.00285 {
-                warn!(
-                    "Not ignoring collision with penetration: {}",
-                    max_penetration_amount
-                );
-                true
-            } else {
-                false
-            }
+            max_penetration_amount > 0.003
         } else {
             true
         }
     });
 }
 
-fn max_penetration(contacts: &mut Contacts) -> f32 {
+fn max_penetration(contacts: &mut Contacts) -> f64 {
     contacts
         .manifolds
         .iter_mut()
@@ -377,7 +374,7 @@ fn max_penetration(contacts: &mut Contacts) -> f32 {
                 .contacts
                 .iter_mut()
                 .fold(max_penetration, |max_penetration, contact| {
-                    f32::max(max_penetration, contact.penetration)
+                    f64::max(max_penetration, contact.penetration)
                 })
         })
 }
