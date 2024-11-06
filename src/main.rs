@@ -120,7 +120,10 @@ fn spawn_robot(
                 parent.spawn((
                     mesh_handle,
                     urdf_to_transform(&collision.origin, &Some(collision.geometry.clone())),
-                    ColliderConstructor::ConvexDecompositionFromMesh,
+                    ColliderConstructor::ConvexDecompositionFromMeshWithConfig(VhacdParameters {
+                        resolution: 128,
+                        ..Default::default()
+                    }),
                     URDFCollider,
                     CollisionLayers::from_bits(idx as u32, !(idx as u32)), // TODO: Update this to
                                                                            // support multiple robots
