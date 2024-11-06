@@ -29,6 +29,7 @@ fn main() {
         .insert_gizmo_config(
             PhysicsGizmos {
                 axis_lengths: None,
+                contact_point_color: Some(Color::srgb(1.0, 0.0, 0.0)),
                 ..default()
             },
             GizmoConfig::default(),
