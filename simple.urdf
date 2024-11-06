@@ -57,6 +57,25 @@
       </geometry>
     </collision>
   </link>
+  <link name="link3">
+    <inertial>
+      <origin rpy="0 0 0" xyz="7.243666489899892e-05 0.05069893196527342 0.002850799344132765"/>
+      <mass value="0.4404689720232285"/>
+      <inertia ixx="0.000302" ixy="-1e-06" ixz="0.0" iyy="5.5e-05" iyz="-0.0" izz="0.000322"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="-5e-05 -0.014791 -0.164647"/>
+      <geometry>
+        <mesh filename="meshes/link3.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="-5e-05 -0.014791 -0.164647"/>
+      <geometry>
+        <mesh filename="meshes/link3.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
   <joint name="joint1" type="continuous">
     <origin rpy="0 0 0" xyz="0.0 0.0 0.039"/>
     <parent link="base_link"/>
@@ -68,5 +87,11 @@
     <parent link="link1"/>
     <child link="link2"/>
     <axis xyz="-1.0 -0.0 0.0"/>
+  </joint>
+  <joint name="joint3" type="continuous">
+    <origin rpy="0 0 0" xyz="0.00025 0.014791 0.108347"/>
+    <parent link="link2"/>
+    <child link="link3"/>
+    <axis xyz="1.0 0.0 0.0"/>
   </joint>
 </robot>
