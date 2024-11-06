@@ -10,6 +10,8 @@ mod world;
 use camera::CameraPlugin;
 use world::WorldPlugin;
 
+static mut ROBOT_COUNT: u32 = 0;
+
 #[derive(Component)]
 struct URDFCollider;
 
@@ -31,7 +33,7 @@ fn main() {
             },
             GizmoConfig::default(),
         )
-        .insert_resource(SubstepCount(2000))
+        .insert_resource(SubstepCount(1000))
         .add_systems(Startup, spawn_robots)
         .add_systems(PostProcessCollisions, ignore_collision)
         .run();
@@ -65,17 +67,22 @@ fn spawn_robot(
     asset_server: &Res<AssetServer>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
 ) {
+    if unsafe { ROBOT_COUNT } > 0 {
+        warn!("Only one robot is currently supported");
+        return;
+    }
+
     let robot = urdf_rs::read_file(urdf_path).expect("Failed to read URDF file");
     let mut link_entities = HashMap::new();
     let mut link_transforms = HashMap::new();
 
-    for link in &robot.links {
+    for (idx, link) in robot.links.into_iter().enumerate() {
         let initial_transform = if link.name == "base_link" {
             base_transform
         } else {
             Transform::IDENTITY
         };
-        let mass_properties = link_to_mass_properties(link);
+        let mass_properties = link_to_mass_properties(&link);
 
         let link_entity = commands.spawn((
             initial_transform,
@@ -114,6 +121,8 @@ fn spawn_robot(
                     urdf_to_transform(&collision.origin, &Some(collision.geometry.clone())),
                     ColliderConstructor::ConvexDecompositionFromMesh,
                     URDFCollider,
+                    CollisionLayers::from_bits(idx as u32, !(idx as u32)), // TODO: Update this to
+                                                                           // support multiple robots
                 ));
             });
         }
@@ -133,6 +142,10 @@ fn spawn_robot(
 
             urdf_to_joint(commands, *parent_entity, *child_entity, joint);
         }
+    }
+
+    unsafe {
+        ROBOT_COUNT += 1;
     }
 }
 
@@ -338,37 +351,31 @@ fn ignore_collision(mut collisions: ResMut<Collisions>, query: Query<&URDFCollid
         let entity2_is_urdf = query.get(contacts.entity2).is_ok();
 
         if entity1_is_urdf && entity2_is_urdf {
-            if collision_above_threshold(contacts, 0.02) {
+            let max_penetration_amount = max_penetration(contacts);
+
+            if max_penetration_amount > 0.00285 {
                 warn!(
                     "Not ignoring collision with penetration: {}",
-                    max_penetration(contacts)
+                    max_penetration_amount
                 );
-                return true;
+                true
+            } else {
+                false
             }
-            false
         } else {
             true
         }
     });
 }
 
-fn collision_above_threshold(contacts: &mut Contacts, ignore_threshold: f32) -> bool {
-    contacts.manifolds.iter().all(|manifold| {
-        manifold
-            .contacts
-            .iter()
-            .all(|contact| contact.penetration >= ignore_threshold)
-    })
-}
-
-fn max_penetration(contacts: &Contacts) -> f32 {
+fn max_penetration(contacts: &mut Contacts) -> f32 {
     contacts
         .manifolds
-        .iter()
+        .iter_mut()
         .fold(0.0, |max_penetration, manifold| {
             manifold
                 .contacts
-                .iter()
+                .iter_mut()
                 .fold(max_penetration, |max_penetration, contact| {
                     f32::max(max_penetration, contact.penetration)
                 })
