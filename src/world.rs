@@ -39,20 +39,20 @@ fn spawn_floor(
     const FLOOR_RADIUS: f32 = 10.0;
     const FLOOR_HEIGHT: f32 = 0.0001;
 
-    commands
-        .spawn(SpatialBundle::default())
-        .with_children(|parent| {
-            parent.spawn(PbrBundle {
-                mesh: meshes.add(Mesh::from(Cylinder::new(FLOOR_RADIUS, FLOOR_HEIGHT / 2.0))),
-                material: materials.add(StandardMaterial {
-                    base_color: color::Color::srgb(0.0, 0.603922, 0.090196), // grass green
-                    ..Default::default()
-                }),
+    commands.spawn((
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(Cylinder::new(FLOOR_RADIUS, FLOOR_HEIGHT / 2.0))),
+            material: materials.add(StandardMaterial {
+                base_color: color::Color::srgb(0.0, 0.603922, 0.090196), // grass green
                 ..Default::default()
-            });
-            parent.spawn((
-                RigidBody::Static,
-                Collider::cylinder(FLOOR_RADIUS.into(), (FLOOR_HEIGHT / 2.0).into()),
-            ));
-        });
+            }),
+            transform: Transform {
+                translation: Vec3::new(0.0, -FLOOR_HEIGHT / 2.0, 0.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        RigidBody::Static,
+        Collider::cylinder(FLOOR_RADIUS.into(), (FLOOR_HEIGHT / 2.0).into()),
+    ));
 }
