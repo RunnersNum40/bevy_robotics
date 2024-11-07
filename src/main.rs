@@ -12,20 +12,41 @@ use world::WorldPlugin;
 
 static mut ROBOT_COUNT: u32 = 0;
 
-#[derive(Component)]
+#[derive(Component, Clone, Debug)]
+struct URDFLink;
+
+#[derive(Component, Clone, Debug)]
 struct URDFCollider;
 
-fn main() {
-    App::new()
-        .add_plugins((
-            DefaultPlugins,
+#[derive(Component, Clone, Debug)]
+struct URDFVisual;
+
+#[derive(Component, Clone, Debug)]
+pub struct Robot {
+    pub urdf_path: String,
+    pub base_transform: Transform,
+}
+
+impl Robot {
+    pub fn new(urdf_path: &str, base_transform: Transform) -> Self {
+        Self {
+            urdf_path: urdf_path.to_string(),
+            base_transform,
+        }
+    }
+}
+
+struct RobotSpawnerPlugin;
+
+impl Plugin for RobotSpawnerPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins((
             bevy_stl::StlPlugin,
-            FpsCounterPlugin,
-            WorldPlugin,
-            CameraPlugin,
             PhysicsPlugins::default(),
             PhysicsDebugPlugin::default(),
         ))
+        .add_systems(PostStartup, spawn_robot_system)
+        .add_systems(PostProcessCollisions, ignore_collision)
         .insert_gizmo_config(
             PhysicsGizmos {
                 axis_lengths: None,
@@ -34,33 +55,58 @@ fn main() {
             },
             GizmoConfig::default(),
         )
-        .insert_resource(SubstepCount(1000))
-        .add_systems(Startup, spawn_robots)
-        .add_systems(PostProcessCollisions, ignore_collision)
+        .insert_resource(SubstepCount(1000));
+    }
+}
+
+fn main() {
+    App::new()
+        .add_plugins((
+            DefaultPlugins,
+            FpsCounterPlugin,
+            WorldPlugin,
+            CameraPlugin,
+            RobotSpawnerPlugin,
+        ))
+        .add_systems(Startup, spawn_test_robot)
         .run();
 }
 
-fn spawn_robots(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    let robot_params = RobotParams {
-        urdf_path: "full.urdf",
-        base_transform: Transform {
+fn spawn_test_robot(mut commands: Commands) {
+    let robot = Robot::new(
+        "full.urdf",
+        Transform {
             translation: Vec3::new(0.0, 0.0, 0.0),
             rotation: Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2),
             scale: Vec3::ONE,
         },
-    };
-    spawn_robot(
-        robot_params,
-        &mut commands,
-        &mut meshes,
-        &asset_server,
-        &mut materials,
     );
+
+    commands.spawn(robot);
+}
+
+fn spawn_robot_system(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    query: Query<(Entity, &Robot)>,
+) {
+    for (entity, component) in query.iter() {
+        let robot_params = RobotParams {
+            urdf_path: &component.urdf_path,
+            base_transform: component.base_transform,
+        };
+        spawn_robot(
+            robot_params,
+            &mut commands,
+            &mut meshes,
+            &asset_server,
+            &mut materials,
+        );
+
+        commands.entity(entity).despawn();
+    }
 }
 
 struct RobotParams<'a> {
@@ -109,6 +155,7 @@ fn spawn_robot(
         &mut link_transforms,
         commands,
     );
+
     unsafe {
         ROBOT_COUNT += 1;
     }
@@ -141,6 +188,7 @@ fn create_robot_link(
         mass_properties,
         InheritedVisibility::VISIBLE,
         GlobalTransform::IDENTITY,
+        URDFLink,
     ));
     let link_entity_id = link_entity.id();
     link_entities.insert(link.name.clone(), link_entity_id);
@@ -161,12 +209,15 @@ fn add_visuals_to_link(
         let (mesh_handle, material_handle) =
             visual_to_mesh_and_material(visual, meshes, asset_server, materials);
         commands.entity(entity_id).with_children(|parent| {
-            parent.spawn(PbrBundle {
-                mesh: mesh_handle,
-                material: material_handle,
-                transform: urdf_to_transform(&visual.origin, &Some(visual.geometry.clone())),
-                ..Default::default()
-            });
+            parent.spawn((
+                PbrBundle {
+                    mesh: mesh_handle,
+                    material: material_handle,
+                    transform: urdf_to_transform(&visual.origin, &Some(visual.geometry.clone())),
+                    ..Default::default()
+                },
+                URDFVisual,
+            ));
         });
     }
 }
