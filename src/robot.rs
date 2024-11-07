@@ -301,7 +301,7 @@ fn visual_to_mesh_and_material(
             material_handle,
         ),
         _ => {
-            warn!("Unsupported geometry type: {:?}", visual.geometry);
+            error!("Unsupported geometry type: {:?}", visual.geometry);
             (Handle::default(), Handle::default())
         }
     }
@@ -327,7 +327,7 @@ fn collision_to_mesh(
             radius: *radius as f32,
         })),
         _ => {
-            warn!("Unsupported geometry type: {:?}", collision.geometry);
+            error!("Unsupported geometry type: {:?}", collision.geometry);
             Handle::default()
         }
     }
