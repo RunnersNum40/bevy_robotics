@@ -207,7 +207,7 @@ fn add_collisions_to_link(
                     ..Default::default()
                 }),
                 URDFCollider,
-                CollisionLayers::new(1 << idx, !0),
+                CollisionLayers::new(1 << idx, !0), // TODO: Fix this for multiple robots
             ));
         });
     }
