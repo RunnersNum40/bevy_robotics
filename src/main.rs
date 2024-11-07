@@ -46,13 +46,16 @@ fn spawn_robots(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    spawn_robot(
-        "full.urdf",
-        Transform {
+    let robot_params = RobotParams {
+        urdf_path: "full.urdf",
+        base_transform: Transform {
             translation: Vec3::new(0.0, 0.0, 0.0),
             rotation: Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2),
             scale: Vec3::ONE,
         },
+    };
+    spawn_robot(
+        robot_params,
         &mut commands,
         &mut meshes,
         &asset_server,
@@ -60,9 +63,13 @@ fn spawn_robots(
     );
 }
 
-fn spawn_robot(
-    urdf_path: &str,
+struct RobotParams<'a> {
+    urdf_path: &'a str,
     base_transform: Transform,
+}
+
+fn spawn_robot(
+    params: RobotParams,
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     asset_server: &Res<AssetServer>,
@@ -73,66 +80,128 @@ fn spawn_robot(
         return;
     }
 
-    let robot = urdf_rs::read_file(urdf_path).expect("Failed to read URDF file");
+    let robot = load_robot_urdf(params.urdf_path);
     let mut link_entities = HashMap::new();
     let mut link_transforms = HashMap::new();
 
-    for (idx, link) in robot.links.into_iter().enumerate() {
-        let initial_transform = if link.name == "base_link" {
-            base_transform
-        } else {
-            Transform::IDENTITY
-        };
-        let mass_properties = link_to_mass_properties(&link);
-
-        let link_entity = commands.spawn((
-            initial_transform,
-            match link.name.as_str() {
-                "base_link" => RigidBody::Kinematic,
-                _ => RigidBody::Dynamic,
-            },
-            Restitution::ZERO,
-            mass_properties,
-            InheritedVisibility::VISIBLE,
-            GlobalTransform::IDENTITY,
-        ));
-
-        let link_entity_id = link_entity.id();
-        link_entities.insert(link.name.clone(), link_entity_id);
-        link_transforms.insert(link.name.clone(), initial_transform);
-
-        for visual in &link.visual {
-            let (mesh_handle, material_handle) =
-                visual_to_mesh_and_material(visual, meshes, asset_server, materials);
-            commands.entity(link_entity_id).with_children(|parent| {
-                parent.spawn(PbrBundle {
-                    mesh: mesh_handle,
-                    material: material_handle,
-                    transform: urdf_to_transform(&visual.origin, &Some(visual.geometry.clone())),
-                    ..Default::default()
-                });
-            });
-        }
-
-        for collision in &link.collision {
-            let mesh_handle = collision_to_mesh(collision, meshes, asset_server);
-            commands.entity(link_entity_id).with_children(|parent| {
-                parent.spawn((
-                    mesh_handle,
-                    urdf_to_transform(&collision.origin, &Some(collision.geometry.clone())),
-                    ColliderConstructor::ConvexDecompositionFromMeshWithConfig(VhacdParameters {
-                        resolution: 128,
-                        ..Default::default()
-                    }),
-                    URDFCollider,
-                    CollisionLayers::from_bits(idx as u32, !(idx as u32)), // TODO: Update this to
-                                                                           // support multiple robots
-                ));
-            });
-        }
+    for link in robot.links {
+        let link_entity_id = create_robot_link(
+            &link,
+            params.base_transform,
+            commands,
+            &mut link_entities,
+            &mut link_transforms,
+        );
+        add_visuals_to_link(
+            &link,
+            link_entity_id,
+            commands,
+            meshes,
+            asset_server,
+            materials,
+        );
+        add_collisions_to_link(&link, link_entity_id, commands, meshes, asset_server);
     }
 
-    for joint in &robot.joints {
+    setup_robot_joints(
+        &robot.joints,
+        &link_entities,
+        &mut link_transforms,
+        commands,
+    );
+    unsafe {
+        ROBOT_COUNT += 1;
+    }
+}
+
+fn load_robot_urdf(urdf_path: &str) -> urdf_rs::Robot {
+    urdf_rs::read_file(urdf_path).expect("Failed to read URDF file")
+}
+
+fn create_robot_link(
+    link: &urdf_rs::Link,
+    base_transform: Transform,
+    commands: &mut Commands,
+    link_entities: &mut HashMap<String, Entity>,
+    link_transforms: &mut HashMap<String, Transform>,
+) -> Entity {
+    let initial_transform = if link.name == "base_link" {
+        base_transform
+    } else {
+        Transform::IDENTITY
+    };
+    let mass_properties = link_to_mass_properties(link);
+
+    let link_entity = commands.spawn((
+        initial_transform,
+        match link.name.as_str() {
+            "base_link" => RigidBody::Kinematic,
+            _ => RigidBody::Dynamic,
+        },
+        mass_properties,
+        InheritedVisibility::VISIBLE,
+        GlobalTransform::IDENTITY,
+    ));
+    let link_entity_id = link_entity.id();
+    link_entities.insert(link.name.clone(), link_entity_id);
+    link_transforms.insert(link.name.clone(), initial_transform);
+
+    link_entity_id
+}
+
+fn add_visuals_to_link(
+    link: &urdf_rs::Link,
+    entity_id: Entity,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    asset_server: &Res<AssetServer>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+) {
+    for visual in &link.visual {
+        let (mesh_handle, material_handle) =
+            visual_to_mesh_and_material(visual, meshes, asset_server, materials);
+        commands.entity(entity_id).with_children(|parent| {
+            parent.spawn(PbrBundle {
+                mesh: mesh_handle,
+                material: material_handle,
+                transform: urdf_to_transform(&visual.origin, &Some(visual.geometry.clone())),
+                ..Default::default()
+            });
+        });
+    }
+}
+
+fn add_collisions_to_link(
+    link: &urdf_rs::Link,
+    entity_id: Entity,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    asset_server: &Res<AssetServer>,
+) {
+    for (idx, collision) in link.collision.iter().enumerate() {
+        let mesh_handle = collision_to_mesh(collision, meshes, asset_server);
+        commands.entity(entity_id).with_children(|parent| {
+            parent.spawn((
+                mesh_handle,
+                urdf_to_transform(&collision.origin, &Some(collision.geometry.clone())),
+                ColliderConstructor::ConvexDecompositionFromMeshWithConfig(VhacdParameters {
+                    resolution: 128,
+                    ..Default::default()
+                }),
+                URDFCollider,
+                CollisionLayers::new(1 << idx, !0),
+            ));
+        });
+    }
+}
+
+fn setup_robot_joints(
+    joints: &[urdf_rs::Joint],
+    link_entities: &HashMap<String, Entity>,
+    link_transforms: &mut HashMap<String, Transform>,
+    commands: &mut Commands,
+) {
+    for joint in joints {
         if let (Some(parent_entity), Some(child_entity)) = (
             link_entities.get(&joint.parent.link),
             link_entities.get(&joint.child.link),
@@ -143,13 +212,8 @@ fn spawn_robot(
                 link_transforms.insert(joint.child.link.clone(), accumulated_transform);
                 commands.entity(*child_entity).insert(accumulated_transform);
             }
-
             urdf_to_joint(commands, *parent_entity, *child_entity, joint);
         }
-    }
-
-    unsafe {
-        ROBOT_COUNT += 1;
     }
 }
 
