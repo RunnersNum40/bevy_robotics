@@ -48,7 +48,7 @@ impl Plugin for RobotSpawnerPlugin {
             },
             GizmoConfig::default(),
         )
-        .insert_resource(SubstepCount(1000));
+        .insert_resource(SubstepCount(2000));
     }
 }
 
