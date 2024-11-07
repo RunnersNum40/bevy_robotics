@@ -38,7 +38,7 @@ impl Plugin for RobotSpawnerPlugin {
             PhysicsPlugins::default(),
             PhysicsDebugPlugin::default(),
         ))
-        .add_systems(PostStartup, spawn_robot_system)
+        .add_systems(FixedUpdate, spawn_robot_system)
         .add_systems(PostProcessCollisions, ignore_collision)
         .insert_gizmo_config(
             PhysicsGizmos {
@@ -57,7 +57,7 @@ fn spawn_robot_system(
     mut meshes: ResMut<Assets<Mesh>>,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    query: Query<(Entity, &Robot)>,
+    query: Query<(Entity, &Robot), Added<Robot>>,
 ) {
     for (entity, component) in query.iter() {
         let robot_params = RobotParams {
