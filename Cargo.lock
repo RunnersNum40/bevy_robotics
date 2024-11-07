@@ -1141,6 +1141,7 @@ dependencies = [
  "bevy_stl",
  "log",
  "urdf-rs",
+ "uuid",
 ]
 
 [[package]]

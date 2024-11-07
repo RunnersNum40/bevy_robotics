@@ -2,8 +2,7 @@ use avian3d::prelude::*;
 use bevy::prelude::*;
 use std::collections::HashMap;
 use urdf_rs::{Geometry, Pose};
-
-static mut ROBOT_COUNT: u32 = 0;
+use uuid::Uuid;
 
 #[derive(Component, Clone, Debug)]
 struct URDFLink;
@@ -88,11 +87,6 @@ fn spawn_robot(
     asset_server: &Res<AssetServer>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
 ) {
-    if unsafe { ROBOT_COUNT } > 0 {
-        warn!("Only one robot is currently supported");
-        return;
-    }
-
     let robot = load_robot_urdf(params.urdf_path);
     let mut link_entities = HashMap::new();
     let mut link_transforms = HashMap::new();
@@ -122,10 +116,6 @@ fn spawn_robot(
         &mut link_transforms,
         commands,
     );
-
-    unsafe {
-        ROBOT_COUNT += 1;
-    }
 }
 
 fn load_robot_urdf(urdf_path: &str) -> urdf_rs::Robot {
@@ -196,8 +186,10 @@ fn add_collisions_to_link(
     meshes: &mut ResMut<Assets<Mesh>>,
     asset_server: &Res<AssetServer>,
 ) {
-    for (idx, collision) in link.collision.iter().enumerate() {
+    for collision in &link.collision {
         let mesh_handle = collision_to_mesh(collision, meshes, asset_server);
+        let link_id = Uuid::new_v4();
+        let layer_mask = 1 << (link_id.as_u128() % 64) as u32;
         commands.entity(entity_id).with_children(|parent| {
             parent.spawn((
                 mesh_handle,
@@ -207,7 +199,7 @@ fn add_collisions_to_link(
                     ..Default::default()
                 }),
                 URDFCollider,
-                CollisionLayers::new(1 << idx, !0), // TODO: Fix this for multiple robots
+                CollisionLayers::new(layer_mask, !layer_mask),
             ));
         });
     }
