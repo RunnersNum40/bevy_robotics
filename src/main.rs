@@ -1,12 +1,11 @@
 use bevy::prelude::*;
 use bevy_fps_counter::FpsCounterPlugin;
+use bevy_urdf::{Robot, RobotSpawnerPlugin};
 
 mod camera;
-mod robot;
 mod world;
 
 use camera::CameraPlugin;
-use robot::{Robot, RobotSpawnerPlugin};
 use world::WorldPlugin;
 
 fn main() {

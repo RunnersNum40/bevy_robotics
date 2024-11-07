@@ -1,5 +1,5 @@
 [package]
-name = "bevy_robotics"
+name = "bevy_urdf"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,10 +9,8 @@ log = { version = "*", features = [
   "release_max_level_warn",
 ] }
 bevy = { version = "0.14", features = ["dynamic_linking", "wayland"] }
-bevy-fps-counter = "0.5"
+bevy_stl = { version = "0.14", features = ["wireframe"] }
 urdf-rs = "0.9"
-bevy_flycam = "0.14"
-bevy_urdf = { path = "./bevy_urdf" }
 avian3d = { version = "0.1", default-features = false, features = [
   "3d",
   "f64",
