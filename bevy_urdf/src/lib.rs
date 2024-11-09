@@ -1,17 +1,27 @@
 use avian3d::prelude::*;
+use avian_motors::motor::{
+    MotorDerivativeGain, MotorIntegralGain, MotorMaxAngularVelocity, MotorMaxTorque, MotorPlugin,
+    MotorProportionalGain, RevoluteMotorBundle, TargetRotation,
+};
 use bevy::prelude::*;
 use std::collections::HashMap;
+use std::f64::consts::PI;
 use urdf_rs::{Geometry, Pose};
 use uuid::Uuid;
 
 #[derive(Component, Clone, Debug)]
-struct URDFLink;
+pub struct URDFLink;
 
 #[derive(Component, Clone, Debug)]
-struct URDFCollider;
+pub struct URDFCollider;
 
 #[derive(Component, Clone, Debug)]
-struct URDFVisual;
+pub struct URDFVisual;
+
+#[derive(Component, Clone, Debug)]
+pub struct URDFJoint {
+    pub name: String,
+}
 
 #[derive(Component, Clone, Debug)]
 pub struct Robot {
@@ -35,7 +45,12 @@ impl Plugin for RobotSpawnerPlugin {
         app.add_plugins((
             bevy_stl::StlPlugin,
             PhysicsPlugins::default(),
-            PhysicsDebugPlugin::default(),
+            // PhysicsDebugPlugin::default(),
+            MotorPlugin {
+                substep_count: None,
+                remove_dampening: false,
+                ..Default::default()
+            },
         ))
         .add_systems(FixedUpdate, spawn_robot_system)
         .add_systems(PostProcessCollisions, ignore_collision)
@@ -47,7 +62,7 @@ impl Plugin for RobotSpawnerPlugin {
             },
             GizmoConfig::default(),
         )
-        .insert_resource(SubstepCount(2000));
+        .insert_resource(SubstepCount(300));
     }
 }
 
@@ -212,7 +227,7 @@ fn setup_robot_joints(
     link_transforms: &mut HashMap<String, Transform>,
     commands: &mut Commands,
 ) {
-    for joint in joints {
+    for (idx, joint) in joints.into_iter().enumerate() {
         if let (Some(parent_entity), Some(child_entity)) = (
             link_entities.get(&joint.parent.link),
             link_entities.get(&joint.child.link),
@@ -223,7 +238,7 @@ fn setup_robot_joints(
                 link_transforms.insert(joint.child.link.clone(), accumulated_transform);
                 commands.entity(*child_entity).insert(accumulated_transform);
             }
-            urdf_to_joint(commands, *parent_entity, *child_entity, joint);
+            urdf_to_joint(commands, *parent_entity, *child_entity, joint, idx <= 1);
         }
     }
 }
@@ -393,10 +408,11 @@ fn urdf_to_joint(
     entity1: Entity,
     entity2: Entity,
     urdf_joint: &urdf_rs::Joint,
+    add_motor: bool,
 ) {
     let axis = Vec3::from(urdf_joint.axis.xyz.map(|v| v as f32));
     let dynamics = urdf_joint.dynamics.clone().unwrap_or(urdf_rs::Dynamics {
-        damping: 10000.0,
+        damping: 10.0,
         friction: 0.0,
     });
 
@@ -417,10 +433,37 @@ fn urdf_to_joint(
             let joint = if let urdf_rs::JointType::Revolute = urdf_joint.joint_type {
                 joint.with_angle_limits(urdf_joint.limit.lower, urdf_joint.limit.upper)
             } else {
-                joint
+                joint.with_angle_limits(-PI, PI)
             };
 
-            commands.spawn(joint);
+            let motor = (
+                TargetRotation(Vec3::ZERO.into()),
+                RevoluteMotorBundle {
+                    stiffness: MotorProportionalGain(5.0),
+                    damping: MotorDerivativeGain(0.1),
+                    integral_gain: MotorIntegralGain(0.1),
+                    max_angular_velocity: MotorMaxAngularVelocity(None),
+                    max_torque: MotorMaxTorque(Some(0.25)),
+                    ..Default::default()
+                },
+            );
+
+            if add_motor {
+                commands.spawn((
+                    joint,
+                    motor,
+                    URDFJoint {
+                        name: urdf_joint.name.clone(),
+                    },
+                ));
+            } else {
+                commands.spawn((
+                    joint,
+                    URDFJoint {
+                        name: urdf_joint.name.clone(),
+                    },
+                ));
+            }
         }
         urdf_rs::JointType::Fixed => {
             commands.spawn(FixedJoint::new(entity1, entity2));
@@ -437,7 +480,8 @@ fn ignore_collision(mut collisions: ResMut<Collisions>, query: Query<&URDFCollid
         if entity1_is_urdf && entity2_is_urdf {
             let max_penetration_amount = max_penetration(contacts);
 
-            max_penetration_amount > 0.003
+            max_penetration_amount > 0.004;
+            false
         } else {
             true
         }

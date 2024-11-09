@@ -340,7 +340,7 @@ dependencies = [
 [[package]]
 name = "avian_motors"
 version = "0.1.0"
-source = "git+https://github.com/RunnersNum40/avian_motors#654a13aea33b199499dcd9424b6de11051fbc31d"
+source = "git+https://github.com/RunnersNum40/avian_motors#d9b2910245fcf8b5a8b6b80b823d35b7628c4b1e"
 dependencies = [
  "avian3d",
  "bevy",
@@ -998,8 +998,10 @@ name = "bevy_robotics"
 version = "0.1.0"
 dependencies = [
  "avian3d",
+ "avian_motors",
  "bevy",
  "bevy-fps-counter",
+ "bevy_egui",
  "bevy_flycam",
  "bevy_urdf",
  "log",
