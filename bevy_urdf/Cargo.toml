@@ -22,3 +22,4 @@ avian3d = { version = "0.1", default-features = false, features = [
   "simd",
 ] }
 uuid = { version = "1.11", features = ["v4"] }
+avian_motors = { git = "https://github.com/RunnersNum40/avian_motors" }
