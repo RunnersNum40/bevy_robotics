@@ -189,7 +189,8 @@ fn add_collisions_to_link(
     for collision in &link.collision {
         let mesh_handle = collision_to_mesh(collision, meshes, asset_server);
         let link_id = Uuid::new_v4();
-        let layer_mask = 1 << (link_id.as_u128() % 64) as u32;
+        let shift_amount = (link_id.as_u128() % 32) as u32;
+        let layer_mask = 1 << shift_amount;
         commands.entity(entity_id).with_children(|parent| {
             parent.spawn((
                 mesh_handle,
